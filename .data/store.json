@@ -1,0 +1,85 @@
+{
+  "likes": [],
+  "likedSuggestions": {},
+  "saves": [
+    {
+      "id": "yt_rJ3_eQwKj78",
+      "list": "knowledge",
+      "addedAt": "2025-09-03T14:13:11.318Z",
+      "suggestion": {
+        "id": "yt_rJ3_eQwKj78",
+        "title": "The bizarre history of how Japanese got written",
+        "creatorName": "Dogen",
+        "creatorAvatarUrl": "https://yt3.ggpht.com/ytc/APkrFKZ-Jwu-Rix4o-C_BA-d0nKeZt-bI_H87h9v1R4L=s88-c-k-c0x00ffffff-no-rj",
+        "thumbnailUrl": "https://i.ytimg.com/vi/rJ3_eQwKj78/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFryq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLD9K4a-j5o4K_lJ1399V2s6u5-lYQ",
+        "durationMinutes": 19,
+        "description": "How did Japanese get written? Well, it's a long and bizarre story involving China, Korea, Buddhism, and a lot of scribbles.",
+        "tags": [
+          "Japanese",
+          "history",
+          "language",
+          "writing",
+          "linguistics"
+        ],
+        "relevance": 0.95,
+        "url": "https://www.youtube.com/watch?v=rJ3_eQwKj78"
+      }
+    },
+    {
+      "id": "yt_VwV5_rakfg",
+      "list": "learn",
+      "addedAt": "2025-09-03T15:04:35.972Z",
+      "suggestion": {
+        "id": "yt_VwV5_rakfg",
+        "title": "I spent 30 days learning to code as a complete beginner",
+        "creatorName": "Conner Ardman",
+        "creatorAvatarUrl": "https://yt3.ggpht.com/ytc/APkrFKb7k2Xy9-rsToq3-Vw_nKz0iefLz32W8j4j6_Q=s88-c-k-c0x00ffffff-no-rj",
+        "thumbnailUrl": "https://i.ytimg.com/vi/VwV5_rakfg/hq720.jpg",
+        "durationMinutes": 10,
+        "description": "Can you learn to code in 30 days? I spent 30 days as a complete beginner learning to code with the goal of building a website. Here's what I learned.",
+        "tags": [
+          "coding",
+          "learn to code",
+          "programming",
+          "web development"
+        ],
+        "relevance": 0.95,
+        "url": "https://www.youtube.com/watch?v=VwV5_rakfg"
+      }
+    }
+  ],
+  "profile": {
+    "hobbies": [
+      "learing code",
+      "wasting time",
+      "read manga",
+      "playing game"
+    ],
+    "interests": [
+      "manga",
+      "anime",
+      "games",
+      "genshin impact"
+    ],
+    "languages": [
+      "go",
+      "javascript",
+      "typescript",
+      "nodejs",
+      "next.js",
+      "svelte",
+      "docker",
+      "sql",
+      "react",
+      "nestjs"
+    ],
+    "youtubers": [
+      {
+        "name": "@NewMedia_Life",
+        "channelUrl": "https://www.youtube.com/@NewMedia_Life"
+      }
+    ],
+    "name": "Adil Tahiri",
+    "workContext": "I work as a software engineer. from 9 to 18:30 from Monday to friday so when i come home i am free to do anything—watch YouTube, play games, or watch streams on Twitch. Sleep hours are from 00:30 to 8:00 during workdays, but on weekends I usually sleep from 02:00 to 10:30. On weekends I usually just wasting time and watch YouTube or read manga or something like this also try to learn french and coding also i play the games  like Genshin Impact and zzz or emnulator games i like the most is the genshin impact"
+  }
+}
