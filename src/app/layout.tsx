@@ -7,6 +7,7 @@ import Link from "next/link";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  fallback: ["Arial", "Times New Roman"],
 });
 
 const geistMono = Geist_Mono({
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.className} ${geistMono.className} antialiased`}>
         <div className="min-h-screen grid grid-cols-[72px_1fr] md:grid-cols-[260px_1fr]">
           <aside className="border-r border-black/10 dark:border-white/10 p-2 md:p-4 sticky top-0 h-svh">
             {/* Sidebar */}

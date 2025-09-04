@@ -46,6 +46,29 @@
         "relevance": 0.95,
         "url": "https://www.youtube.com/watch?v=VwV5_rakfg"
       }
+    },
+    {
+      "id": "yt-v-sNhhvQGs8sg",
+      "list": "knowledge",
+      "addedAt": "2025-09-04T14:07:08.602Z",
+      "suggestion": {
+        "id": "yt-v-sNhhvQGs8sg",
+        "title": "The Art of Asking Questions",
+        "creatorName": "TED",
+        "creatorAvatarUrl": "https://yt3.ggpht.com/ytc/AOPolaS-yQT-jWp50-iXvLHR8z9-y4YSN7H0Lp_p1Hk=s88-c-k-c0x00ffffff-no-rj",
+        "thumbnailUrl": "https://i.ytimg.com/vi/sNhhvQGs8sg/hqdefault.jpg",
+        "durationMinutes": 7,
+        "description": "Learn how to ask better questions to foster deeper conversations and understanding.",
+        "tags": [
+          "communication",
+          "questions",
+          "relationships",
+          "TED",
+          "public speaking"
+        ],
+        "relevance": 0.8,
+        "url": "https://www.youtube.com/watch?v=sNhhvQGs8sg"
+      }
     }
   ],
   "profile": {
@@ -79,7 +102,7 @@
         "channelUrl": "https://www.youtube.com/@NewMedia_Life"
       }
     ],
-    "name": "Adil Tahiri",
+    "name": "",
     "workContext": "I work as a software engineer. from 9 to 18:30 from Monday to friday so when i come home i am free to do anything—watch YouTube, play games, or watch streams on Twitch. Sleep hours are from 00:30 to 8:00 during workdays, but on weekends I usually sleep from 02:00 to 10:30. On weekends I usually just wasting time and watch YouTube or read manga or something like this also try to learn french and coding also i play the games  like Genshin Impact and zzz or emnulator games i like the most is the genshin impact"
   }
 }
