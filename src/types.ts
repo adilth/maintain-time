@@ -16,7 +16,11 @@ export type SuggestionTag =
   | "learn"
   | "knowledge"
   | "tomorrow"
-  | "other";
+  | "other"
+  | "trending"
+  | "youtube"
+  | "tech"
+  | "chill";
 
 export type Suggestion = {
   id: string;
@@ -63,4 +67,11 @@ export type RecommendResponse = {
   usedFallback?: boolean;
 };
 
+export type HistorySession = {
+  id: string;
+  message: string;
+  mood: Mood;
+  suggestions: Suggestion[];
+  timestamp: string; // ISO date
+};
 

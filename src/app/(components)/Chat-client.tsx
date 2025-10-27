@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Mood, Suggestion, RecommendResponse, Profile } from "@/types";
 import { SuggestionCard } from "./SuggestionCard";
+import { SuggestionsGridSkeleton } from "./LoadingSkeleton";
+import { toast } from "sonner";
+import { useLikesSaves } from "@/contexts/LikesSavesContext";
 
 type ChatSession = {
   id: string;
@@ -22,6 +25,9 @@ export function ChatClient({ initialSessions, initialProfile }: ChatClientProps)
   const [sessions, setSessions] = useState<ChatSession[]>(initialSessions);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  
+  // Get context refresh functions
+  const { refreshLikes, refreshSaves } = useLikesSaves();
 
   async function submit() {
     if (!message.trim()) return;
@@ -59,21 +65,50 @@ export function ChatClient({ initialSessions, initialProfile }: ChatClientProps)
 
       if (data?.error) {
         console.warn("AI fallback:", data.error);
+        toast.warning("AI temporarily unavailable", {
+          description: "Showing content from your saves",
+        });
       }
 
       if (data?.usedFallback) {
         console.info("Using fallback suggestions from saved content");
       }
 
+      const suggestions = data.suggestions ?? [];
+
       setSessions((prev) =>
         prev.map((s) =>
-          s.id === id ? { ...s, suggestions: data.suggestions ?? [], loading: false } : s
+          s.id === id ? { ...s, suggestions, loading: false } : s
         )
       );
+
+      // Save to history
+      if (suggestions.length > 0) {
+        try {
+          await fetch("/api/history", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session: {
+                id,
+                message: userMessage,
+                mood,
+                suggestions,
+                timestamp: new Date().toISOString(),
+              },
+            }),
+          });
+        } catch (err) {
+          console.error("Failed to save history:", err);
+        }
+      }
 
       queueMicrotask(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
     } catch (error) {
       console.error("Error submitting message:", error);
+      toast.error("Failed to get recommendations", {
+        description: "Please try again",
+      });
       setSessions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, loading: false } : s))
       );
@@ -100,22 +135,7 @@ export function ChatClient({ initialSessions, initialProfile }: ChatClientProps)
               </div>
 
               {sess.loading ? (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="rounded-lg border border-black/10 dark:border-white/10 p-3 animate-pulse"
-                    >
-                      <div className="aspect-video bg-black/10 dark:bg-white/10 rounded mb-3" />
-                      <div className="h-4 bg-black/10 dark:bg-white/10 rounded w-3/4 mb-2" />
-                      <div className="h-3 bg-black/10 dark:bg-white/10 rounded w-1/2 mb-4" />
-                      <div className="flex gap-2">
-                        <div className="h-5 w-12 bg-black/10 dark:bg-white/10 rounded-full" />
-                        <div className="h-5 w-16 bg-black/10 dark:bg-white/10 rounded-full" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <SuggestionsGridSkeleton count={6} />
               ) : (
                 <div className="space-y-2">
                   {sess.suggestions.some(
@@ -135,18 +155,36 @@ export function ChatClient({ initialSessions, initialProfile }: ChatClientProps)
                         key={s.id}
                         s={s}
                         onLike={async (sig) => {
-                          await fetch("/api/likes", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ suggestion: sig }),
-                          });
+                          try {
+                            await fetch("/api/likes", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ suggestion: sig }),
+                            });
+                            toast.success("Liked!", {
+                              description: sig.title,
+                            });
+                            // Refresh context to update all cards
+                            await refreshLikes();
+                          } catch {
+                            toast.error("Failed to like");
+                          }
                         }}
                         onSave={async (sig, list) => {
-                          await fetch("/api/saves", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ suggestion: sig, list }),
-                          });
+                          try {
+                            await fetch("/api/saves", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ suggestion: sig, list }),
+                            });
+                            toast.success(`Saved to ${list}!`, {
+                              description: sig.title,
+                            });
+                            // Refresh context to update all cards
+                            await refreshSaves();
+                          } catch {
+                            toast.error("Failed to save");
+                          }
                         }}
                       />
                     ))}
@@ -160,24 +198,51 @@ export function ChatClient({ initialSessions, initialProfile }: ChatClientProps)
       </div>
 
       <div className="border-t border-black/10 dark:border-white/10 p-3 md:p-4">
-        <div className="max-w-7xl mx-auto flex items-center gap-2">
-          <MoodIcons value={mood} onChange={setMood} />
-          <input
-            className="flex-1 border rounded-lg px-4 py-3 bg-background text-base"
+        <div className="max-w-7xl mx-auto flex items-end gap-2">
+          <select
+            value={mood}
+            onChange={(e) => setMood(e.target.value as Mood)}
+            className="border rounded-lg px-3 py-3 bg-background text-base min-w-[140px]"
+            title="Select your mood"
+          >
+            <option value="tired">😴 Tired</option>
+            <option value="curious">🧐 Curious</option>
+            <option value="motivated">⚡ Motivated</option>
+            <option value="relaxed">🧘 Relaxed</option>
+            <option value="bored">🤥 Bored</option>
+            <option value="chill">😌 Chill</option>
+          </select>
+          <textarea
+            className="chat_message flex-1 rounded-xl px-4 py-3 bg-[#212121] text-base resize-none overflow-y-auto min-h-[52px] max-h-[120px] "
             placeholder="Ask for a 40-minute video for the shower…"
             value={message}
             id="message"
-            onChange={(e) => setMessage(e.target.value)}
+            rows={1}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              // Auto-resize textarea
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 submit();
+                // Reset height after submit
+                e.currentTarget.style.height = 'auto';
               }
             }}
           />
           <button
-            className="px-5 py-3 rounded-md bg-foreground text-background text-base"
-            onClick={submit}
+            className="px-5 py-3 rounded-md bg-foreground text-background text-base whitespace-nowrap"
+            onClick={() => {
+              submit();
+              // Reset textarea height after submit
+              const textarea = document.getElementById('message') as HTMLTextAreaElement;
+              if (textarea) {
+                textarea.style.height = 'auto';
+              }
+            }}
             disabled={loading}
           >
             {loading ? "Sending…" : "Send"}
@@ -185,35 +250,5 @@ export function ChatClient({ initialSessions, initialProfile }: ChatClientProps)
         </div>
       </div>
     </>
-  );
-}
-
-function MoodIcons({ value, onChange }: { value: Mood; onChange: (m: Mood) => void }) {
-  const items: { mood: Mood; label: string; emoji: string }[] = [
-    { mood: "tired", label: "Tired", emoji: "😴" },
-    { mood: "curious", label: "Curious", emoji: "🧐" },
-    { mood: "motivated", label: "Motivated", emoji: "⚡" },
-    { mood: "relaxed", label: "Relaxed", emoji: "🧘" },
-    { mood: "bored", label: "Bored", emoji: "🤥" },
-    { mood: "chill", label: "Chill", emoji: "😌" },
-  ];
-
-  return (
-    <div className="flex items-center gap-1">
-      {items.map((it) => (
-        <button
-          key={it.mood}
-          className={`px-2 py-2 rounded-md border ${
-            value === it.mood ? "bg-black/10 dark:bg-white/10" : "bg-transparent"
-          }`}
-          aria-label={it.label}
-          onClick={() => onChange(it.mood)}
-        >
-          <span className="text-xl" title={it.label}>
-            {it.emoji}
-          </span>
-        </button>
-      ))}
-    </div>
   );
 }

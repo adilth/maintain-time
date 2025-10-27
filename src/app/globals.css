@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.chat_message{
+   scrollbar-width: thin; 
+   scrollbar-color: var(--foreground) var(--background);
+}
+.chat_message::-webkit-scrollbar {
+   width: 7px; 
+}
+.chat_message::-webkit-scrollbar-track {
+   background: var(--background); 
+}

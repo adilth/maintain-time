@@ -1,12 +1,13 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { SavedItem, Suggestion } from "@/types";
+import { SavedItem, Suggestion, HistorySession, Profile } from "@/types";
 
 type Store = {
   likes?: string[];
   likedSuggestions?: Record<string, Suggestion>;
   saves?: SavedItem[];
-  profile?: any;
+  profile?: Profile | object;
+  history?: HistorySession[];
 };
 
 const DATA_DIR = process.env.DATA_DIR || ".data";
@@ -20,7 +21,7 @@ async function ensureFile() {
   try {
     await fs.access(FILE_PATH);
   } catch {
-    await fs.writeFile(FILE_PATH, JSON.stringify({ likes: [], likedSuggestions: {}, saves: [], profile: {} }, null, 2));
+    await fs.writeFile(FILE_PATH, JSON.stringify({ likes: [], likedSuggestions: {}, saves: [], profile: {}, history: [] }, null, 2));
   }
 }
 
@@ -30,7 +31,7 @@ export async function readStore(): Promise<Store> {
   try {
     return JSON.parse(raw);
   } catch {
-    return { likes: [], likedSuggestions: {}, saves: [], profile: {} };
+    return { likes: [], likedSuggestions: {}, saves: [], profile: {}, history: [] };
   }
 }
 

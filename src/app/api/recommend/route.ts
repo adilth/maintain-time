@@ -74,32 +74,49 @@ function buildGeminiPrompt(body?: RecommendRequest) {
   const message = body?.message ?? "";
 
   // Separate system instructions from user content
-  const systemInstruction = `You are a web content recommendation system. You recommend videos, articles, and podcasts based on user requests. 
+  const systemInstruction = `You are a web content recommendation system. You recommend ONLY real, existing YouTube videos based on user requests. 
+  
+  IMPORTANT RULES:
+  1. ONLY recommend real YouTube videos that actually exist
+  2. Use ONLY real YouTube video IDs (11 characters, like "dQw4w9WgXcQ")
+  3. Thumbnail URLs MUST follow this exact format: https://i.ytimg.com/vi/VIDEO_ID/hqdefault.jpg
+  4. Avatar URLs MUST follow this exact format: https://yt3.ggpht.com/... (real YouTube channel avatars)
+  5. DO NOT make up or invent video IDs, thumbnails, or URLs
+  6. DO NOT use external websites like Forbes, Shopify, or podcast sites
+  7. ONLY use content from youtube.com
   
   Always return ONLY valid JSON in this exact format - an array of suggestion objects:
   [
     {
-      "id": "unique_id",
-      "title": "Content Title",
-      "creatorName": "Creator Name",
-      "thumbnailUrl": "https://youtube.com/thumb.jpg",
-      "creatorAvatarUrl": "https://youtube.com/avatar.jpg",
+      "id": "yt_VIDEO_ID",
+      "title": "Actual Video Title",
+      "creatorName": "Actual Channel Name",
+      "thumbnailUrl": "https://i.ytimg.com/vi/VIDEO_ID/hqdefault.jpg",
+      "creatorAvatarUrl": "https://yt3.ggpht.com/CHANNEL_AVATAR",
       "durationMinutes": 25,
       "date_published": "2024-07-01",
-      "description": "Brief description of the content",
+      "description": "Brief description",
       "tags": ["tag1", "tag2"],
       "relevance": 0.9,
-      "url": "https://youtube.com/content"
+      "url": "https://www.youtube.com/watch?v=VIDEO_ID"
     }
   ]
   
-  Consider the user's mood, profile (hobbies, interests, languages, work context), and favorite content creators. Prioritize matching channels when relevant to their interests. Avoid duplicates. Ensure relevance is a number between 0 and 1.`;
+  Consider the user's mood, profile (hobbies, interests, languages, work context), and favorite content creators. Prioritize matching channels when relevant. Ensure relevance is a number between 0 and 1.
+  
+  REMINDER: Use ONLY real YouTube videos with valid video IDs. Do not invent or hallucinate content.`;
 
-  const userPrompt = `Please recommend ${count} pieces of web content based on:
+  const userPrompt = `Please recommend ${count} real YouTube videos based on:
   
   Message: "${message}"
   Mood: ${mood ?? "unknown"}
   Profile: ${JSON.stringify(profile ?? {})}
+  
+  IMPORTANT: 
+  - Recommend ONLY real, existing YouTube videos
+  - Use actual video IDs from youtube.com
+  - Ensure all URLs are valid and working
+  - Format thumbnail URLs as: https://i.ytimg.com/vi/VIDEO_ID/hqdefault.jpg
   
   Return only the JSON array, no additional text.`;
 
@@ -212,12 +229,35 @@ function extractJsonObjects(source: string): any[] {
 }
 
 function normalizeSuggestion(s: any): Suggestion {
+  // Extract video ID if it's a YouTube URL
+  let videoId = s.id;
+  if (videoId && videoId.startsWith('yt_')) {
+    videoId = videoId.replace('yt_', '');
+  }
+  
+  // Fix thumbnail URL to use reliable YouTube format
+  let thumbnailUrl = s.thumbnailUrl;
+  if (videoId && (!thumbnailUrl || !thumbnailUrl.includes('ytimg.com'))) {
+    thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  }
+  
+  // Only keep YouTube thumbnails, filter out external ones
+  if (thumbnailUrl && !thumbnailUrl.includes('ytimg.com') && !thumbnailUrl.includes('yt3.ggpht.com')) {
+    thumbnailUrl = undefined; // Will show placeholder instead
+  }
+  
+  // Filter out non-YouTube avatar URLs
+  let avatarUrl = s.creatorAvatarUrl;
+  if (avatarUrl && !avatarUrl.includes('yt3.ggpht.com')) {
+    avatarUrl = undefined;
+  }
+
   return {
     id: String(s.id ?? crypto.randomUUID()),
     title: String(s.title ?? "Untitled"),
     creatorName: String(s.creatorName ?? "Unknown"),
-    creatorAvatarUrl: s.creatorAvatarUrl ?? undefined,
-    thumbnailUrl: s.thumbnailUrl ?? undefined,
+    creatorAvatarUrl: avatarUrl,
+    thumbnailUrl: thumbnailUrl,
     durationMinutes:
       typeof s.durationMinutes === "number" ? s.durationMinutes : undefined,
     datePublished: typeof s.datePublished === "string" ? s.datePublished : undefined,
