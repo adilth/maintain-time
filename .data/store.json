@@ -219,6 +219,133 @@
   },
   "history": [
     {
+      "id": "fe12e18c-5e30-4bb1-bc5a-11875edc5765",
+      "message": "give me videos about improving social skills and personality ",
+      "mood": "curious",
+      "suggestions": [
+        {
+          "id": "saved_frencheasylearning-1_0",
+          "title": "French Conversation Practice for Beginners - Improve Listening Skills",
+          "creatorName": "FrenchPod101",
+          "creatorAvatarUrl": "https://yt3.ggpht.com/a/AATXAJwO-8iQ_Cj6Keqz_Uj01B9V0QYm3tdw7o512A=s88-c-k-c0xffffffff-no-rj-mo",
+          "thumbnailUrl": "https://i.ytimg.com/vi/bsvS5-iPIA0/mqdefault.jpg",
+          "durationMinutes": 12,
+          "description": "From your saves (learn) - Practice your French listening comprehension with this engaging conversation. Perfect for A2 level learners.",
+          "tags": [
+            "French",
+            "Learning",
+            "Beginner",
+            "A2",
+            "Listening",
+            "Conversation",
+            "saved",
+            "learn"
+          ],
+          "relevance": 0.9,
+          "url": "https://www.youtube.com/watch?v=bsvS5-iPIA0"
+        },
+        {
+          "id": "saved_yt_rJ3_eQwKj78_1",
+          "title": "The bizarre history of how Japanese got written",
+          "creatorName": "Dogen",
+          "creatorAvatarUrl": "https://yt3.ggpht.com/ytc/APkrFKZ-Jwu-Rix4o-C_BA-d0nKeZt-bI_H87h9v1R4L=s88-c-k-c0x00ffffff-no-rj",
+          "thumbnailUrl": "https://i.ytimg.com/vi/rJ3_eQwKj78/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFryq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLD9K4a-j5o4K_lJ1399V2s6u5-lYQ",
+          "durationMinutes": 19,
+          "description": "From your saves (knowledge) - How did Japanese get written? Well, it's a long and bizarre story involving China, Korea, Buddhism, and a lot of scribbles.",
+          "tags": [
+            "Japanese",
+            "history",
+            "language",
+            "writing",
+            "linguistics",
+            "saved",
+            "knowledge"
+          ],
+          "relevance": 0.8,
+          "url": "https://www.youtube.com/watch?v=rJ3_eQwKj78"
+        },
+        {
+          "id": "saved_yt_VwV5_rakfg_2",
+          "title": "I spent 30 days learning to code as a complete beginner",
+          "creatorName": "Conner Ardman",
+          "creatorAvatarUrl": "https://yt3.ggpht.com/ytc/APkrFKb7k2Xy9-rsToq3-Vw_nKz0iefLz32W8j4j6_Q=s88-c-k-c0x00ffffff-no-rj",
+          "thumbnailUrl": "https://i.ytimg.com/vi/VwV5_rakfg/hq720.jpg",
+          "durationMinutes": 10,
+          "description": "From your saves (learn) - Can you learn to code in 30 days? I spent 30 days as a complete beginner learning to code with the goal of building a website. Here's what I learned.",
+          "tags": [
+            "coding",
+            "learn to code",
+            "programming",
+            "web development",
+            "saved",
+            "learn"
+          ],
+          "relevance": 0.7,
+          "url": "https://www.youtube.com/watch?v=VwV5_rakfg"
+        },
+        {
+          "id": "saved_yt_m0c-C_bSgE_3",
+          "title": "How to Discover Your Talents and Strengths",
+          "creatorName": "Practical Psychology",
+          "creatorAvatarUrl": "https://yt3.ggpht.com/ytc/AOPolaQ_vN1m080wKz_aCj4v04W-3-jB2wRkZ-v9jY3u=s88-c-k-c0x00ffffff-no-rj",
+          "thumbnailUrl": "https://i.ytimg.com/vi/m0c-C_bSgE/hqdefault.jpg",
+          "durationMinutes": 7,
+          "description": "From your saves (knowledge) - This video explains how to discover your talents and strengths.",
+          "tags": [
+            "talents",
+            "strengths",
+            "skills",
+            "career",
+            "self-improvement",
+            "saved",
+            "knowledge"
+          ],
+          "relevance": 0.6,
+          "url": "https://www.youtube.com/watch?v=m0c-C_bSgE"
+        },
+        {
+          "id": "saved_art_sidehustle_4",
+          "title": "27 Best Side Hustle Ideas to Make Extra Money in 2024",
+          "creatorName": "Oberlo",
+          "creatorAvatarUrl": "https://www.oberlo.com/media/img/favicon.png",
+          "thumbnailUrl": "https://static.oberlo.com/media/1669834595-side-hustle-ideas.jpg",
+          "durationMinutes": 0,
+          "description": "From your saves (knowledge) - Looking for the best side hustle ideas to make extra money? In this article, you’ll discover 27 side hustle ideas to help you supplement your income.",
+          "tags": [
+            "side hustle",
+            "money",
+            "income",
+            "freelance",
+            "saved",
+            "knowledge"
+          ],
+          "relevance": 0.5,
+          "url": "https://www.oberlo.com/blog/side-hustle-ideas"
+        },
+        {
+          "id": "saved_yt-v-sNhhvQGs8sg_5",
+          "title": "The Art of Asking Questions",
+          "creatorName": "TED",
+          "creatorAvatarUrl": "https://yt3.ggpht.com/ytc/AOPolaS-yQT-jWp50-iXvLHR8z9-y4YSN7H0Lp_p1Hk=s88-c-k-c0x00ffffff-no-rj",
+          "thumbnailUrl": "https://i.ytimg.com/vi/sNhhvQGs8sg/hqdefault.jpg",
+          "durationMinutes": 7,
+          "description": "From your saves (knowledge) - Learn how to ask better questions to foster deeper conversations and understanding.",
+          "tags": [
+            "communication",
+            "questions",
+            "relationships",
+            "TED",
+            "public speaking",
+            "saved",
+            "knowledge"
+          ],
+          "relevance": 0.4,
+          "url": "https://www.youtube.com/watch?v=sNhhvQGs8sg"
+        }
+      ],
+      "timestamp": "2025-10-31T14:42:44.930Z"
+    },
+    {
       "id": "3c67b255-286f-4130-8fc7-8f2625861802",
       "message": "i want to get little passion about the work and search for a project that will get me stable money ",
       "mood": "curious",

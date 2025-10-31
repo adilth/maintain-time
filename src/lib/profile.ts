@@ -1,15 +1,23 @@
 import { Profile } from "@/types";
+import { readStore } from "./store";
 
 export async function loadProfile(): Promise<Profile> {
   try {
-    const resp = await fetch("/api/profile");
-    const data = await resp.json();
-    // Fix: Put defaults first, then spread the actual profile data
+    // Read directly from store instead of making an API call
+    // This works on both server and client side
+    const store = await readStore();
+    const profile = store.profile as Profile | undefined;
+    
+    // Return profile with defaults for missing fields
     return {
-      ...{ hobbies: [], interests: [], languages: [], youtubers: [] },
-      ...data.profile,
+      hobbies: [],
+      interests: [],
+      languages: [],
+      youtubers: [],
+      ...profile,
     };
-  } catch {
+  } catch (err) {
+    console.error("Error loading profile:", err);
     return { hobbies: [], interests: [], languages: [], youtubers: [] };
   }
 }
