@@ -14,12 +14,9 @@ async function checkBot() {
   // Check environment variables
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const apiUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3002";
-  const dataDir = process.env.DATA_DIR || ".data";
-
   console.log("📋 Environment Check:");
   console.log(`   TELEGRAM_BOT_TOKEN: ${token ? "✅ Set" : "❌ Missing"}`);
   console.log(`   NEXT_PUBLIC_APP_URL: ${apiUrl}`);
-  console.log(`   DATA_DIR: ${dataDir}`);
   console.log(`   GOOGLE_GEMINI_API_KEY: ${process.env.GOOGLE_GEMINI_API_KEY ? "✅ Set" : "⚠️  Missing (will use fallback)"}`);
   console.log("");
 

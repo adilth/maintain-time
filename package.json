@@ -9,9 +9,12 @@
     "lint": "eslint",
     "bot": "tsx --env-file=.env src/bot/start.ts",
     "bot:check": "tsx --env-file=.env src/bot/check-health.ts",
+    "bot:commands": "tsx --env-file=.env src/bot/set-commands.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run bot\""
   },
   "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "bcryptjs": "^3.0.3",
     "concurrently": "^9.2.1",
     "next": "15.5.2",
     "react": "19.1.0",
@@ -28,6 +31,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
+    "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

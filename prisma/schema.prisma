@@ -1,0 +1,224 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  password  String?  // hashed password for web users
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // User profile and preferences
+  profile Profile?
+
+  // Telegram connection (optional - for bot users)
+  telegramId       String?           @unique
+  telegramUsername String?
+  telegramAccount  TelegramAccount?
+
+  // User's content
+  history    HistorySession[]
+  saves      SavedItem[]
+  likes      Like[]
+  stats      UserStats?
+  
+  @@index([email])
+  @@index([telegramId])
+}
+
+// Separate table for Telegram-specific data
+model TelegramAccount {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  telegramId       String   @unique
+  username         String?
+  firstName        String?
+  lastName         String?
+  languageCode     String?
+  
+  currentMood      String?  // "tired" | "curious" | "motivated" | "relaxed" | "bored" | "chill"
+  lastActive       DateTime @default(now())
+  
+  // Bot-specific settings
+  notifications    NotificationSettings?
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([telegramId])
+}
+
+// ============================================
+// USER PROFILE & PREFERENCES
+// ============================================
+
+model Profile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Profile data stored as JSON for flexibility
+  hobbies     String[] // Array of hobbies
+  interests   String[] // Array of interests
+  languages   String[] // Programming languages or spoken languages
+  workContext String?  @db.Text
+  
+  // Youtubers as JSON
+  youtubers   Json?    // [{ name: string, channelUrl: string }]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// CONTENT - HISTORY, SAVES, LIKES
+// ============================================
+
+model HistorySession {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  message     String   @db.Text
+  mood        String?  // User's mood when requesting
+  
+  // Suggestions stored as JSON array
+  suggestions Json     // Suggestion[]
+  
+  timestamp   DateTime @default(now())
+  feedback    String?  // "helpful" | "not-helpful"
+  
+  @@index([userId, timestamp(sort: Desc)])
+  @@index([timestamp(sort: Desc)])
+}
+
+model SavedItem {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // The suggestion data stored as JSON
+  suggestion   Json     // Suggestion object
+  
+  // Video/content identifiers
+  videoId      String   // For quick lookup
+  
+  // Save list category
+  list         String   // "listen" | "learn" | "knowledge" | "tomorrow" | "other"
+  
+  addedAt      DateTime @default(now())
+  
+  // Optional notes
+  notes        String?  @db.Text
+  
+  @@unique([userId, videoId])
+  @@index([userId, list])
+  @@index([userId, addedAt(sort: Desc)])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  videoId   String
+  
+  // Store the full suggestion for reference
+  suggestion Json?   // Suggestion object
+  
+  likedAt   DateTime @default(now())
+  
+  @@unique([userId, videoId])
+  @@index([userId, likedAt(sort: Desc)])
+}
+
+// ============================================
+// USER STATISTICS & ANALYTICS
+// ============================================
+
+model UserStats {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Counters
+  totalQueries       Int      @default(0)
+  totalLikes         Int      @default(0)
+  totalSaves         Int      @default(0)
+  totalVideosWatched Int      @default(0)
+  
+  // Engagement tracking
+  streak             Int      @default(0) // Days in a row
+  longestStreak      Int      @default(0)
+  lastActiveDate     DateTime @default(now())
+  
+  // Favorite categories as JSON
+  favoriteCategories Json?    // { "coding": 15, "gaming": 8, ... }
+  
+  // Mood preferences
+  favoriteMood       String?  // Most used mood
+  
+  joinedAt           DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ============================================
+// NOTIFICATIONS & SETTINGS
+// ============================================
+
+model NotificationSettings {
+  id              String   @id @default(cuid())
+  telegramId      String   @unique
+  telegram        TelegramAccount @relation(fields: [telegramId], references: [id], onDelete: Cascade)
+  
+  // Daily digest settings
+  dailyDigest     Boolean  @default(false)
+  dailyDigestTime String?  // "09:00" format (24h)
+  
+  // Alert preferences
+  trendingAlerts  Boolean  @default(false)
+  reminders       Boolean  @default(false)
+  
+  // Timezone
+  timezone        String   @default("UTC")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ============================================
+// TRENDING & CACHE (OPTIONAL)
+// ============================================
+
+// Store trending videos to avoid repeated API calls
+model TrendingCache {
+  id          String   @id @default(cuid())
+  
+  // Cached data
+  suggestions Json     // Suggestion[]
+  
+  // Cache metadata
+  category    String?  // "tech", "gaming", etc.
+  region      String?  // "US", "global", etc.
+  
+  fetchedAt   DateTime @default(now())
+  expiresAt   DateTime
+  
+  @@index([expiresAt])
+}

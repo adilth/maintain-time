@@ -1,14 +1,24 @@
 import { Profile } from "@/types";
-import { readStore } from "./store";
 
+/**
+ * Client-side function to load user profile from API
+ * Works in client components (browser)
+ */
 export async function loadProfile(): Promise<Profile> {
   try {
-    // Read directly from store instead of making an API call
-    // This works on both server and client side
-    const store = await readStore();
-    const profile = store.profile as Profile | undefined;
+    const response = await fetch("/api/profile", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
     
-    // Return profile with defaults for missing fields
+    if (!response.ok) {
+      return { hobbies: [], interests: [], languages: [], youtubers: [] };
+    }
+    
+    const data = await response.json();
+    const profile = data.profile as Profile | undefined;
+    
     return {
       hobbies: [],
       interests: [],
@@ -27,7 +37,10 @@ export async function saveProfile(profile: Profile) {
     await fetch("/api/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ profile }),
     });
-  } catch {}
+  } catch (err) {
+    console.error("Error saving profile:", err);
+  }
 }

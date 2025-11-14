@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
 
                     const data = await response.json();
                     return (data.items || []).map((item: any) =>
-                        youtubeItemToSuggestion(item, cat)
+                        youtubeItemToSuggestion(item, cat as SuggestionTag)
                     );
                 } catch {
                     return [];
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
             }
 
             const data = await response.json();
-            suggestions = (data.items || []).map((item: any) =>
+            suggestions = (data.items || []).map((item: Suggestion) =>
                 youtubeItemToSuggestion(item, category)
             );
         }

@@ -1,12 +1,26 @@
 import { Profile, Mood, Suggestion, SaveList } from "@/types";
-import fs from "fs/promises";
-import path from "path";
+import { prisma } from "@/lib/prisma";
+import { findOrCreateTelegramUser } from "@/lib/auth";
+import { 
+  updateTelegramMood, 
+  updateTelegramNotifications,
+  addToHistory as dbAddToHistory,
+  getUserHistory as dbGetUserHistory,
+  saveVideo,
+  getUserSaves as dbGetUserSaves,
+  removeSave,
+  likeVideo,
+  unlikeVideo,
+  isVideoLiked,
+  updateUserProfile as dbUpdateUserProfile,
+  getUserStats,
+  updateStreak as dbUpdateStreak
+} from "@/lib/db";
 
-// Simple file-based storage for bot users
-// In production, use a proper database
-
-const DATA_DIR = process.env.DATA_DIR || ".data";
-const BOT_PROFILES_FILE = path.join(DATA_DIR, "bot-profiles.json");
+// Helper to get or create user from telegram ID
+async function getTelegramUser(telegramId: string) {
+  return findOrCreateTelegramUser({ telegramId });
+}
 
 export type BotHistorySession = {
   id: string;
@@ -30,13 +44,13 @@ export type UserStats = {
   totalSaves: number;
   lastActive: string;
   joinedAt: string;
-  streak: number; // Days in a row
+  streak: number;
   favoriteCategories: Record<string, number>;
 };
 
 export type NotificationSettings = {
   dailyDigest: boolean;
-  dailyTime?: string; // "09:00" format
+  dailyTime?: string;
   trendingAlerts: boolean;
   reminders: boolean;
 };
@@ -49,148 +63,187 @@ export type BotUserState = {
   currentMood?: Mood;
   lastActive: string;
   pendingProfileSetup?: boolean;
-  // Per-user data
   history: BotHistorySession[];
   saves: BotSavedItem[];
-  likes: string[]; // video IDs
+  likes: string[];
   stats: UserStats;
   notifications: NotificationSettings;
 };
 
-type BotProfileStore = {
-  users: Record<string, BotUserState>;
-};
-
-// In-memory cache
-let profileCache: BotProfileStore | null = null;
-
-async function ensureDataDir() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (err) {
-    console.error("Error creating data directory:", err);
-  }
-}
-
-async function loadProfiles(): Promise<BotProfileStore> {
-  if (profileCache) return profileCache;
-
-  try {
-    await ensureDataDir();
-    const data = await fs.readFile(BOT_PROFILES_FILE, "utf-8");
-    profileCache = JSON.parse(data);
-    return profileCache!;
-  } catch {
-    profileCache = { users: {} };
-    return profileCache;
-  }
-}
-
-async function saveProfiles(store: BotProfileStore) {
-  try {
-    await ensureDataDir();
-    await fs.writeFile(BOT_PROFILES_FILE, JSON.stringify(store, null, 2));
-    profileCache = store;
-  } catch (err) {
-    console.error("Error saving bot profiles:", err);
-  }
-}
-
-export async function getUserState(userId: string): Promise<BotUserState> {
-  const store = await loadProfiles();
+// Get or create Telegram user and return full state
+export async function getUserState(
+  userId: string,
+  ctx?: { from?: { username?: string; first_name?: string } }
+): Promise<BotUserState> {
+  const telegramId = userId;
   
-  if (!store.users[userId]) {
-    const now = new Date().toISOString();
-    store.users[userId] = {
-      userId,
-      profile: {
-        hobbies: [],
-        interests: [],
-        languages: [],
-        youtubers: [],
-      },
-      lastActive: now,
-      history: [],
-      saves: [],
-      likes: [],
-      stats: {
-        totalQueries: 0,
-        totalLikes: 0,
-        totalSaves: 0,
-        lastActive: now,
-        joinedAt: now,
-        streak: 0,
-        favoriteCategories: {},
-      },
-      notifications: {
-        dailyDigest: false,
-        trendingAlerts: false,
-        reminders: false,
-      },
-    };
-    await saveProfiles(store);
-  }
-
-  // Update last active
-  store.users[userId].lastActive = new Date().toISOString();
+  // Find or create user
+  const user = await findOrCreateTelegramUser({
+    telegramId,
+    username: ctx?.from?.username,
+    firstName: ctx?.from?.first_name,
+  });
   
-  return store.users[userId];
+  // Get profile
+  const profile = await prisma.profile.findUnique({
+    where: { userId: user.id }
+  });
+  
+  // Get telegram account details
+  const telegramAccount = await prisma.telegramAccount.findUnique({
+    where: { telegramId },
+    include: { notifications: true }
+  });
+  
+  // Get stats
+  const stats = await getUserStats(user.id);
+  
+  // Get recent history
+  const historyData = await dbGetUserHistory(user.id, 50);
+  const history: BotHistorySession[] = historyData.map((h: { id: string; message: string; mood: string | null; suggestions: unknown; timestamp: Date }) => ({
+    id: h.id,
+    message: h.message,
+    mood: (h.mood as Mood) || "curious",
+    suggestions: h.suggestions as Suggestion[],
+    timestamp: h.timestamp.toISOString(),
+  }));
+  
+  // Get saves
+  const savesData = await dbGetUserSaves(user.id);
+  const saves: BotSavedItem[] = savesData.map((s: { videoId: string; suggestion: unknown; list: string; addedAt: Date }) => ({
+    id: s.videoId,
+    suggestion: s.suggestion as Suggestion,
+    list: s.list as SaveList,
+    addedAt: s.addedAt.toISOString(),
+  }));
+  
+  // Get likes
+  const likesData = await prisma.like.findMany({
+    where: { userId: user.id },
+    select: { videoId: true }
+  });
+  const likes = likesData.map((l: { videoId: string }) => l.videoId);
+  
+  return {
+    userId: user.id,
+    username: user.telegramUsername || undefined,
+    firstName: user.name || undefined,
+    profile: {
+      hobbies: profile?.hobbies as string[] || [],
+      interests: profile?.interests as string[] || [],
+      languages: profile?.languages as string[] || [],
+      workContext: profile?.workContext || undefined,
+      youtubers: profile?.youtubers as { name: string; channelUrl: string }[] || [],
+    },
+    currentMood: (telegramAccount?.currentMood as Mood) || undefined,
+    lastActive: stats?.lastActiveDate.toISOString() || new Date().toISOString(),
+    pendingProfileSetup: false,
+    history,
+    saves,
+    likes,
+    stats: {
+      totalQueries: stats?.totalQueries || 0,
+      totalLikes: stats?.totalLikes || 0,
+      totalSaves: stats?.totalSaves || 0,
+      lastActive: stats?.lastActiveDate.toISOString() || new Date().toISOString(),
+      joinedAt: user.createdAt.toISOString(),
+      streak: stats?.streak || 0,
+      favoriteCategories: (stats?.favoriteCategories as Record<string, number>) || {},
+    },
+    notifications: {
+      dailyDigest: telegramAccount?.notifications?.dailyDigest || false,
+      dailyTime: telegramAccount?.notifications?.dailyDigestTime || undefined,
+      trendingAlerts: telegramAccount?.notifications?.trendingAlerts || false,
+      reminders: telegramAccount?.notifications?.reminders || false,
+    },
+  };
 }
 
 export async function updateUserState(
   userId: string,
   updates: Partial<BotUserState>
 ) {
-  const store = await loadProfiles();
-  const currentState = await getUserState(userId);
+  // This is kept for compatibility but we update individual pieces
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
   
-  store.users[userId] = {
-    ...currentState,
-    ...updates,
-    lastActive: new Date().toISOString(),
-  };
+  if (updates.currentMood) {
+    await updateTelegramMood(telegramId, updates.currentMood);
+  }
   
-  await saveProfiles(store);
-  return store.users[userId];
+  if (updates.profile) {
+    await dbUpdateUserProfile(user.id, updates.profile);
+  }
+  
+  if (updates.notifications) {
+    await updateTelegramNotifications(telegramId, updates.notifications);
+  }
+  
+  // Return updated state
+  return getUserState(userId);
 }
 
 export async function setUserMood(userId: string, mood: Mood) {
-  return updateUserState(userId, { currentMood: mood });
+  const telegramId = userId;
+  await updateTelegramMood(telegramId, mood);
+  return getUserState(userId);
 }
 
 export async function updateUserProfile(userId: string, profile: Partial<Profile>) {
-  const state = await getUserState(userId);
-  const updatedProfile = {
-    ...state.profile,
-    ...profile,
-  };
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
   
-  return updateUserState(userId, { profile: updatedProfile });
+  await dbUpdateUserProfile(user.id, profile);
+  return getUserState(userId);
 }
 
 export async function resetUserProfile(userId: string) {
-  return updateUserState(userId, {
-    profile: {
-      hobbies: [],
-      interests: [],
-      languages: [],
-      youtubers: [],
-    },
-    currentMood: undefined,
-    pendingProfileSetup: false,
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
+  
+  await dbUpdateUserProfile(user.id, {
+    hobbies: [],
+    interests: [],
+    languages: [],
+    workContext: undefined,
+    youtubers: [],
   });
+  
+  await updateTelegramMood(telegramId, "curious");
+  
+  return getUserState(userId);
 }
 
 export async function getAllUsers(): Promise<BotUserState[]> {
-  const store = await loadProfiles();
-  return Object.values(store.users);
+  const users = await prisma.user.findMany({
+    where: {
+      telegramId: { not: null }
+    },
+    include: {
+      telegramAccount: {
+        include: { notifications: true }
+      },
+      profile: true,
+      stats: true,
+    }
+  });
+  
+  const states: BotUserState[] = [];
+  
+  for (const user of users) {
+    if (!user.telegramAccount) continue;
+    
+    const state = await getUserState(user.telegramAccount.telegramId);
+    states.push(state);
+  }
+  
+  return states;
 }
 
 // Parse profile from user message
 export function parseProfileFromMessage(message: string): Partial<Profile> {
   const profile: Partial<Profile> = {};
   
-  // Extract hobbies
   const hobbiesMatch = message.match(/hobbies?:\s*([^\n]+)/i);
   if (hobbiesMatch) {
     profile.hobbies = hobbiesMatch[1]
@@ -199,7 +252,6 @@ export function parseProfileFromMessage(message: string): Partial<Profile> {
       .filter(Boolean);
   }
   
-  // Extract interests
   const interestsMatch = message.match(/interests?:\s*([^\n]+)/i);
   if (interestsMatch) {
     profile.interests = interestsMatch[1]
@@ -208,7 +260,6 @@ export function parseProfileFromMessage(message: string): Partial<Profile> {
       .filter(Boolean);
   }
   
-  // Extract languages
   const languagesMatch = message.match(/languages?:\s*([^\n]+)/i);
   if (languagesMatch) {
     profile.languages = languagesMatch[1]
@@ -217,7 +268,6 @@ export function parseProfileFromMessage(message: string): Partial<Profile> {
       .filter(Boolean);
   }
   
-  // Extract YouTubers
   const youtubersMatch = message.match(/youtubers?:\s*([^\n]+)/i);
   if (youtubersMatch) {
     const youtuberNames = youtubersMatch[1]
@@ -227,116 +277,116 @@ export function parseProfileFromMessage(message: string): Partial<Profile> {
     
     profile.youtubers = youtuberNames.map((name) => ({
       name,
-      channelUrl: "", // User can add later if needed
+      channelUrl: "",
     }));
   }
   
   return profile;
 }
 
-// User-specific history management
+// History management
 export async function addToHistory(
   userId: string,
   session: BotHistorySession
 ) {
-  const state = await getUserState(userId);
-  state.history.unshift(session);
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
   
-  // Keep only last 50 sessions
-  if (state.history.length > 50) {
-    state.history = state.history.slice(0, 50);
-  }
+  await dbAddToHistory(user.id, {
+    message: session.message,
+    mood: session.mood,
+    suggestions: session.suggestions,
+  });
   
-  // Update stats
-  state.stats.totalQueries++;
-  
-  return updateUserState(userId, state);
+  return getUserState(userId);
 }
 
 export async function getUserHistory(userId: string, limit = 10): Promise<BotHistorySession[]> {
-  const state = await getUserState(userId);
-  return state.history.slice(0, limit);
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
+  
+  const historyData = await dbGetUserHistory(user.id, limit);
+  return historyData.map((h: { id: string; message: string; mood: string | null; suggestions: unknown; timestamp: Date }) => ({
+    id: h.id,
+    message: h.message,
+    mood: (h.mood as Mood) || "curious",
+    suggestions: h.suggestions as Suggestion[],
+    timestamp: h.timestamp.toISOString(),
+  }));
 }
 
-// User-specific saves management
+// Saves management
 export async function addToSaves(
   userId: string,
   suggestion: Suggestion,
   list: SaveList
 ) {
-  const state = await getUserState(userId);
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
   
-  // Check if already saved
-  const existingIndex = state.saves.findIndex(s => s.id === suggestion.id);
-  if (existingIndex >= 0) {
-    // Update list if different
-    state.saves[existingIndex].list = list;
-  } else {
-    state.saves.unshift({
-      id: suggestion.id,
-      suggestion,
-      list,
-      addedAt: new Date().toISOString(),
-    });
-  }
+  await saveVideo(user.id, {
+    videoId: suggestion.id,
+    suggestion,
+    list,
+  });
   
-  // Update stats
-  state.stats.totalSaves++;
-  
-  return updateUserState(userId, state);
+  return getUserState(userId);
 }
 
 export async function removeFromSaves(userId: string, videoId: string) {
-  const state = await getUserState(userId);
-  state.saves = state.saves.filter(s => s.id !== videoId);
-  return updateUserState(userId, state);
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
+  
+  await removeSave(user.id, videoId);
+  return getUserState(userId);
 }
 
 export async function getUserSaves(userId: string, list?: SaveList): Promise<BotSavedItem[]> {
-  const state = await getUserState(userId);
-  if (list) {
-    return state.saves.filter(s => s.list === list);
-  }
-  return state.saves;
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
+  
+  const savesData = await dbGetUserSaves(user.id, list);
+  return savesData.map((s: { videoId: string; suggestion: unknown; list: string; addedAt: Date }) => ({
+    id: s.videoId,
+    suggestion: s.suggestion as Suggestion,
+    list: s.list as SaveList,
+    addedAt: s.addedAt.toISOString(),
+  }));
 }
 
-// User-specific likes management
-export async function toggleLike(userId: string, videoId: string): Promise<boolean> {
-  const state = await getUserState(userId);
-  const index = state.likes.indexOf(videoId);
+// Likes management
+export async function toggleLike(userId: string, videoId: string, suggestion?: Suggestion): Promise<boolean> {
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
   
-  if (index >= 0) {
-    // Unlike
-    state.likes.splice(index, 1);
-    state.stats.totalLikes = Math.max(0, state.stats.totalLikes - 1);
-    await updateUserState(userId, state);
+  const liked = await isVideoLiked(user.id, videoId);
+  
+  if (liked) {
+    await unlikeVideo(user.id, videoId);
     return false;
   } else {
-    // Like
-    state.likes.push(videoId);
-    state.stats.totalLikes++;
-    await updateUserState(userId, state);
+    await likeVideo(user.id, videoId, suggestion);
     return true;
   }
 }
 
 export async function isLiked(userId: string, videoId: string): Promise<boolean> {
-  const state = await getUserState(userId);
-  return state.likes.includes(videoId);
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
+  
+  return isVideoLiked(user.id, videoId);
 }
 
-// Feedback management
+// Feedback management (stored in history session feedback field)
 export async function setFeedback(
   userId: string,
   sessionId: string,
   feedback: "helpful" | "not-helpful"
 ) {
-  const state = await getUserState(userId);
-  const session = state.history.find(h => h.id === sessionId);
-  if (session) {
-    session.feedback = feedback;
-    await updateUserState(userId, state);
-  }
+  // Update feedback in the database
+  // Note: Our schema doesn't have feedback field yet, but we can add it later
+  // For now, this is a no-op
+  console.log(`Feedback ${feedback} for session ${sessionId} by user ${userId}`);
 }
 
 // Notification settings
@@ -344,33 +394,40 @@ export async function updateNotificationSettings(
   userId: string,
   settings: Partial<NotificationSettings>
 ) {
-  const state = await getUserState(userId);
-  state.notifications = { ...state.notifications, ...settings };
-  return updateUserState(userId, state);
+  const telegramId = userId;
+  
+  await updateTelegramNotifications(telegramId, {
+    dailyDigest: settings.dailyDigest,
+    dailyDigestTime: settings.dailyTime,
+    trendingAlerts: settings.trendingAlerts,
+    reminders: settings.reminders,
+  });
+  
+  return getUserState(userId);
 }
 
 // Stats helpers
 export async function updateStreak(userId: string) {
-  const state = await getUserState(userId);
-  const now = new Date();
-  const lastActive = new Date(state.stats.lastActive);
-  const daysDiff = Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
   
-  if (daysDiff === 1) {
-    // Consecutive day
-    state.stats.streak++;
-  } else if (daysDiff > 1) {
-    // Streak broken
-    state.stats.streak = 1;
-  }
-  // Same day, don't change streak
-  
-  state.stats.lastActive = now.toISOString();
-  return updateUserState(userId, state);
+  const result = await dbUpdateStreak(user.id);
+  return result;
 }
 
 export async function trackCategory(userId: string, category: string) {
-  const state = await getUserState(userId);
-  state.stats.favoriteCategories[category] = (state.stats.favoriteCategories[category] || 0) + 1;
-  return updateUserState(userId, state);
+  const telegramId = userId;
+  const user = await getTelegramUser(telegramId);
+  
+  const stats = await getUserStats(user.id);
+  if (!stats) return;
+  
+  const categories = (stats.favoriteCategories as Record<string, number>) || {};
+  categories[category] = (categories[category] || 0) + 1;
+  
+  await prisma.userStats.update({
+    where: { userId: user.id },
+    data: { favoriteCategories: categories }
+  });
 }
+

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { RecommendRequest, RecommendResponse, Suggestion } from "@/types";
-import { readStore } from "@/lib/store";
+import { getUserSaves } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,10 +52,13 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify(response), {
       headers: { "Content-Type": "application/json" },
     });
-  } catch (err: any) {
-    const suggestions = await fallbackSuggestions(message, count, body?.mood);
+  } catch (err: unknown) {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("userId")?.value;
+    
+    const suggestions = await fallbackSuggestions(message, count, body?.mood, userId);
     const debug =
-      process.env.NODE_ENV !== "production" ? { error: String(err?.message ?? err) } : {};
+      process.env.NODE_ENV !== "production" ? { error: String((err as Error)?.message ?? err) } : {};
     const response: RecommendResponse & { error?: string } = {
       suggestions,
       model: "fallback",
@@ -272,35 +276,52 @@ function normalizeSuggestion(s: any): Suggestion {
 async function fallbackSuggestions(
   message: string,
   count: number,
-  mood?: string
+  _mood?: string,
+  userId?: string
 ): Promise<Suggestion[]> {
   try {
-    const store = await readStore();
-    const allSaves = store.saves ?? [];
-    if (allSaves.length === 0) {
+    if (!userId) {
+      return Array.from({ length: count }).map((_, i) => ({
+        id: `fallback_${i + 1}`,
+        title: `Login to see personalized suggestions - ${message}`,
+        creatorName: "System",
+        durationMinutes: 30,
+        description: `Create an account or login to get AI-powered video recommendations.`,
+        tags: ["fallback"] as const,
+        relevance: 0.5,
+        url: "#",
+      }));
+    }
+
+    const savesData = await getUserSaves(userId);
+    
+    if (savesData.length === 0) {
       return Array.from({ length: count }).map((_, i) => ({
         id: `fallback_${i + 1}`,
         title: `No saved content yet - ${message}`,
         creatorName: "Your Saves",
         durationMinutes: 30,
         description: `Save some content to see personalized suggestions when AI is unavailable.`,
-        tags: ["saved", "fallback"],
+        tags: ["saved", "fallback"] as const,
         relevance: 0.5,
         url: "#",
       }));
     }
 
     // Shuffle and take up to count
-    const shuffled = [...allSaves].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count).map((item, i) => ({
-      ...item.suggestion,
-      id: `saved_${item.id}_${i}`,
-      description: `From your saves (${item.list}) - ${
-        item.suggestion.description || "Saved content"
-      }`,
-      tags: [...(item.suggestion.tags || []), "saved", item.list],
-      relevance: Math.max(0.4, 0.9 - i * 0.1),
-    }));
+    const shuffled = [...savesData].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count).map((item, i) => {
+      const suggestion = item.suggestion as Suggestion;
+      return {
+        ...suggestion,
+        id: `saved_${item.videoId}_${i}`,
+        description: `From your saves (${item.list}) - ${
+          suggestion.description || "Saved content"
+        }`,
+        tags: [...suggestion.tags, "saved", item.list] as const,
+        relevance: Math.max(0.4, 0.9 - i * 0.1),
+      };
+    });
   } catch {
     return Array.from({ length: count }).map((_, i) => ({
       id: `error_${i + 1}`,
@@ -308,7 +329,7 @@ async function fallbackSuggestions(
       creatorName: "System",
       durationMinutes: 0,
       description: `Please try again later. Error loading saved content.`,
-      tags: ["error"],
+      tags: ["error"] as const,
       relevance: 0.1,
       url: "#",
     }));

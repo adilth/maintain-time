@@ -43,3 +43,5 @@ next-env.d.ts
 # Bot data
 .data/
 bot-profiles.json
+
+/src/generated/prisma

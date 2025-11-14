@@ -7,6 +7,7 @@ import {
   handleProfile,
   handleReset,
   handleRecommend,
+  handleSkip,
   handleTextMessage,
   handleMoodCommand,
   handleHistory,
@@ -36,6 +37,7 @@ bot.command("mood", handleMood);
 bot.command("profile", handleProfile);
 bot.command("reset", handleReset);
 bot.command("recommend", handleRecommend);
+bot.command("skip", handleSkip);
 bot.command("history", handleHistory);
 bot.command("saves", handleSaves);
 bot.command("trending", handleTrending);

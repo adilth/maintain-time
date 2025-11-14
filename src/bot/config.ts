@@ -22,6 +22,7 @@ export const BOT_COMMANDS = {
   mood: "Set your mood (e.g., /mood curious)",
   profile: "Manage your profile preferences",
   recommend: "Get recommendations (e.g., /recommend 20min coding)",
+  skip: "Skip current action (e.g., profile setup)",
   history: "View your recent recommendations",
   saves: "View your saved content",
   trending: "Get trending content",
@@ -73,6 +74,9 @@ Examples:
   • Favorite YouTubers
 
 /recommend <query> - Get recommendations
+  Example: /recommend give short video about game
+  
+/skip - Skip current action (like profile setup)
 /history - View your recommendation history
 /saves - View your saved videos
 /trending - Get trending content

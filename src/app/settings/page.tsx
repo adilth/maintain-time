@@ -17,7 +17,7 @@ export default function SettingsPage() {
   const [newYTName, setNewYTName] = useState("");
   const [newYTUrl, setNewYTUrl] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout>(0);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Load profile on mount
   useEffect(() => {
     loadProfile().then((loadedProfile) => {

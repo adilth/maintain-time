@@ -1,11 +1,10 @@
-import { loadProfile } from "@/lib/profile";
 import { ChatClient } from "./(components)/Chat-client";
-import { getSavedSuggestions } from "./actions";
+import { getSavedSuggestions, getServerProfile } from "./actions";
 
 export default async function Home() {
   // Fetch data on the server
   const [profile, savedSuggestions] = await Promise.all([
-    loadProfile(),
+    getServerProfile(),
     getSavedSuggestions(),
   ]);
 

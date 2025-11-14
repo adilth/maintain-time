@@ -2,7 +2,42 @@
 
 import { revalidateTag } from "next/cache";
 import { Mood, Profile, SavedItem, Suggestion } from "@/types";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
+
+/**
+ * Server action to load user profile
+ * Use this in server components instead of loadProfile()
+ */
+export async function getServerProfile(): Promise<Profile> {
+  try {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("userId")?.value;
+    
+    if (!userId) {
+      return { hobbies: [], interests: [], languages: [], youtubers: [] };
+    }
+    
+    const profile = await prisma.profile.findUnique({
+      where: { userId }
+    });
+    
+    if (!profile) {
+      return { hobbies: [], interests: [], languages: [], youtubers: [] };
+    }
+    
+    return {
+      hobbies: (profile.hobbies as string[]) || [],
+      interests: (profile.interests as string[]) || [],
+      languages: (profile.languages as string[]) || [],
+      workContext: profile.workContext || undefined,
+      youtubers: (profile.youtubers as { name: string; channelUrl: string }[]) || [],
+    };
+  } catch (err) {
+    console.error("Error loading profile:", err);
+    return { hobbies: [], interests: [], languages: [], youtubers: [] };
+  }
+}
 
 export async function submitRecommendationRequest(
   message: string,

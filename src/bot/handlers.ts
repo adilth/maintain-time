@@ -292,14 +292,31 @@ export async function handleRecommend(ctx: BotContext) {
   if (!userId) return;
 
   const text = ctx.message && 'text' in ctx.message ? ctx.message.text : '';
-  const query = text.replace(/^\/recommend\s*/i, '').trim();
+  // Extract everything after "/recommend " (including the space)
+  const query = text.replace(/^\/recommend(@\w+)?\s*/i, '').trim();
   
   if (!query) {
     await ctx.reply("Please provide what you're looking for.\n\nExample: /recommend 30min coding tutorial");
     return;
   }
 
+  // Call handleTextMessage with the query directly
   await handleTextMessage(ctx, query);
+}
+
+// Handle /skip command
+export async function handleSkip(ctx: BotContext) {
+  const userId = ctx.from?.id.toString();
+  if (!userId) return;
+
+  const userState = await getUserState(userId);
+  
+  if (userState.pendingProfileSetup) {
+    userState.pendingProfileSetup = false;
+    await ctx.reply("Profile setup skipped. You can set it later with /profile");
+  } else {
+    await ctx.reply("Nothing to skip right now. Use /skip during profile setup.");
+  }
 }
 
 // Handle regular text messages
@@ -319,12 +336,6 @@ export async function handleTextMessage(ctx: BotContext, customQuery?: string) {
 
   // Check if user is setting up profile
   if (userState.pendingProfileSetup) {
-    if (text.toLowerCase() === '/skip') {
-      userState.pendingProfileSetup = false;
-      await ctx.reply("Profile setup skipped. You can set it later with /profile");
-      return;
-    }
-    
     const profileData = parseProfileFromMessage(text);
     
     if (Object.keys(profileData).length > 0) {
@@ -377,16 +388,24 @@ export async function handleTextMessage(ctx: BotContext, customQuery?: string) {
         const keyboard = getVideoActionButtons(video.id);
         
         try {
-          // Send with thumbnail if available
+          // Try to send with thumbnail if available
           if (video.thumbnailUrl) {
-            await ctx.replyWithPhoto(
-              video.thumbnailUrl,
-              {
-                caption: videoMsg,
-                parse_mode: "MarkdownV2",
+            try {
+              await ctx.replyWithPhoto(
+                video.thumbnailUrl,
+                {
+                  caption: videoMsg,
+                  parse_mode: "MarkdownV2",
+                  reply_markup: keyboard,
+                }
+              );
+            } catch (photoError) {
+              // If photo fails (Telegram can't fetch it), send as formatted text
+              console.error("Error sending photo, falling back to text:", photoError);
+              await ctx.replyWithMarkdownV2(videoMsg, {
                 reply_markup: keyboard,
-              }
-            );
+              });
+            }
           } else {
             // Send as text with buttons
             await ctx.replyWithMarkdownV2(videoMsg, {
@@ -395,8 +414,16 @@ export async function handleTextMessage(ctx: BotContext, customQuery?: string) {
           }
         } catch (error) {
           console.error("Error sending video:", error);
-          // Fallback to simple text
-          await ctx.reply(`${video.title}\n${video.url || ""}`);
+          // Last resort fallback - send plain text with buttons
+          try {
+            const plainMsg = `${videoCount}. ${video.title}\n\n📺 ${video.creatorName || 'Unknown'}\n\n${video.url || ''}`;
+            await ctx.reply(plainMsg, {
+              reply_markup: keyboard,
+            });
+          } catch {
+            // Ultimate fallback
+            await ctx.reply(`${video.title}\n${video.url || ""}`);
+          }
         }
       }
       

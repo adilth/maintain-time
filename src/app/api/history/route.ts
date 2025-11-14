@@ -1,13 +1,37 @@
 import { NextRequest } from "next/server";
-import { HistorySession } from "@/types";
-import { readStore, writeStore } from "@/lib/store";
+import { cookies } from "next/headers";
+import { HistorySession, Mood, Suggestion } from "@/types";
+import { getUserHistory, addToHistory, getGlobalHistory } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const store = await readStore();
-    const history = (store.history ?? []).sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("userId")?.value;
+
+    let historyData;
+
+    if (userId) {
+      // Get user-specific history
+      historyData = await getUserHistory(userId, 50);
+    } else {
+      // Get global history for non-logged-in users
+      historyData = await getGlobalHistory(50);
+    }
+
+    function parseSuggestions(value: unknown): Suggestion[] {
+      if (Array.isArray(value)) return value as Suggestion[];
+      return [];
+    }
+
+    const history: HistorySession[] = historyData.map((h) => ({
+      id: h.id,
+      message: h.message,
+      mood: (h.mood as Mood) ?? 'relaxed',
+      suggestions: parseSuggestions(h.suggestions),
+      timestamp: h.timestamp.toISOString(),
+    }));
+
     return new Response(JSON.stringify({ history }), {
       headers: { "Content-Type": "application/json" },
     });
@@ -25,26 +49,29 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const session: HistorySession | undefined = body?.session;
 
-    if (!session?.id) {
+    if (!session) {
       return new Response(
         JSON.stringify({ ok: false, error: "missing session data" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const store = await readStore();
-    const history: HistorySession[] = store.history ?? [];
-    
-    // Add new session at the beginning
-    history.unshift(session);
-    
-    // Keep only last 50 sessions
-    if (history.length > 50) {
-      history.splice(50);
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("userId")?.value;
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Not authenticated" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    store.history = history;
-    await writeStore(store);
+    // Add to database
+    await addToHistory(userId, {
+      message: session.message,
+      mood: session.mood,
+      suggestions: session.suggestions,
+    });
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { "Content-Type": "application/json" },
@@ -63,18 +90,27 @@ export async function DELETE(req: NextRequest) {
     const url = new URL(req.url);
     const sessionId = url.searchParams.get("id");
 
-    const store = await readStore();
-    const history: HistorySession[] = store.history ?? [];
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("userId")?.value;
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Not authenticated" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     if (sessionId) {
       // Delete specific session
-      store.history = history.filter((s) => s.id !== sessionId);
+      await prisma.historySession.delete({
+        where: { id: sessionId, userId },
+      });
     } else {
-      // Clear all history
-      store.history = [];
+      // Clear all history for user
+      await prisma.historySession.deleteMany({
+        where: { userId },
+      });
     }
-
-    await writeStore(store);
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { "Content-Type": "application/json" },

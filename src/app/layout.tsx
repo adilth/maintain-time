@@ -5,6 +5,8 @@ import SidebarLink from "./(components)/SidebarLink";
 import Link from "next/link";
 import { Toaster } from "sonner";
 import { LikesSavesProvider } from "@/contexts/LikesSavesContext";
+import { UserMenu } from "./(components)/UserMenu";
+import { cookies } from "next/headers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +24,26 @@ export const metadata: Metadata = {
   description: "Get personalized video, article, and podcast recommendations based on your mood and interests",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Check if user is logged in
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("userId")?.value;
+  
+  // Get user name if logged in
+  let userName: string | undefined;
+  if (userId) {
+    try {
+      const { prisma } = await import("@/lib/prisma");
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true }
+      });
+      userName = user?.name || user?.email || undefined;
+    } catch (error) {
+      console.error("Error fetching user:", error);
+    }
+  }
+
   return (
     <html lang="en">
       <body className={`${geistSans.className} ${geistMono.className} antialiased`}>
@@ -54,7 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </li>
                 </ul>
               </div>
-                <div className="text-xs text-foreground/60">AI Suggestions</div>
+                <UserMenu userName={userName} />
               </nav>
             </aside>
             <main className="min-h-svh">{children}</main>
